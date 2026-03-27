@@ -22,25 +22,37 @@ Selection rule:
 
 ## Terminal-first dictionary lookup
 
-Use `lynx` to search the root index when only a concept or catalog label is known:
+Prefer the bundled `scripts/search_datacube_docs.sh` wrapper when working inside this skill.
+It uses Python for root-index search and auto-selects a plain-text renderer for `doc_id` pages:
+
+- Windows or Windows-like shells: prefer the bundled Python renderer.
+- Unix-like shells: prefer `w3m`, then `lynx`, with Python as the final fallback.
+- Set `DATACUBE_DOC_RENDERER=python`, `w3m`, or `lynx` to override the automatic choice.
+
+Search the root index when only a concept or catalog label is known:
 
 ```bash
-lynx -dump -listonly 'https://datacube.foundersc.com/document/2' | rg 'A股日行情'
+scripts/search_datacube_docs.sh 'A股日行情'
 ```
 
-Use `w3m` to inspect a known page in plain text:
+Inspect a known page in plain text:
 
 ```bash
-w3m -dump 'https://datacube.foundersc.com/document/2?doc_id=10303' | sed -n '600,760p'
+scripts/search_datacube_docs.sh --doc-id 10303 --lines 600:760
 ```
 
 Use `rg` on the plain-text dump to jump to contract sections:
 
 ```bash
-w3m -dump 'https://datacube.foundersc.com/document/2?doc_id=10303' | rg -n '接口|输入参数|输出参数'
+scripts/search_datacube_docs.sh --doc-id 10303 --pattern '接口|输入参数|输出参数'
 ```
 
-Prefer the bundled `scripts/search_datacube_docs.sh` wrapper when working inside this skill.
+If you are debugging on Unix and need the underlying tools directly, these are still valid:
+
+```bash
+lynx -dump -listonly 'https://datacube.foundersc.com/document/2' | rg 'A股日行情'
+w3m -dump 'https://datacube.foundersc.com/document/2?doc_id=10303' | rg -n '接口|输入参数|输出参数'
+```
 
 ## Browser-based lookup
 

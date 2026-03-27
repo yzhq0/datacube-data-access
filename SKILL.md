@@ -14,7 +14,7 @@ Prefer DataCube self-owned datasets when they cover the requirement; switch to m
 
 1. Clarify the requirement into subject, frequency, time range, identifiers, source preference, and output fields.
 2. Read `references/datacube-playbook.md` for the core workflow. If the request involves ETF, Wind-mounted tables, or high-frequency market data, also read `references/topics/etf-wind.md`. If the request involves derived index moneyflow, constituent weights, or weight drift, also read `references/topics/index-moneyflow.md`.
-3. Search the docs with `scripts/search_datacube_docs.sh "<keyword>"` or use `$playwright` when the site is easier to navigate in a real browser.
+3. Search the docs with `scripts/search_datacube_docs.sh "<keyword>"`. The wrapper auto-selects a page renderer by platform, preferring `w3m` or `lynx` on Unix when available and the bundled Python renderer on Windows or minimal environments. Use `$playwright` when the site is easier to navigate in a real browser.
 4. Extract the contract from the chosen `doc_id` page and confirm `api_name`, required params, optional params, and field names.
 5. Decide the extraction pattern from both the contract and the table's observed data shape: range-first when interval filters work, split mode only when the API truly requires a per-code or per-date loop, and month-end snapshot mode when the table is effectively monthly. Also confirm the observed code format if the workflow may mix A-share, Hong Kong, or other markets.
 6. Download the dataset with `scripts/download_datacube.py`, using split mode only when the live API or the data shape really requires it.
@@ -54,7 +54,7 @@ Treat Wind interfaces as higher-friction by default because internal code mappin
 
 If the API name is unknown:
 
-- Run `scripts/search_datacube_docs.sh "<keyword>"` to search the DataCube document index via `lynx`.
+- Run `scripts/search_datacube_docs.sh "<keyword>"` to search the DataCube document index. The wrapper uses Python for index search and auto-selects a doc-page renderer by platform.
 - Use `$playwright` or the installed Playwright CLI skill when the navigation depends on live menus, JavaScript rendering, or repeated drilling through the site.
 
 If `doc_id` is already known:
@@ -139,7 +139,7 @@ Before finishing:
 
 ## Scripts
 
-- `scripts/search_datacube_docs.sh`: search the DataCube doc index or dump a specific `doc_id` page in plain text
+- `scripts/search_datacube_docs.sh`: search the DataCube doc index or dump a specific `doc_id` page in plain text, auto-switching between `w3m`, `lynx`, and a bundled Python renderer
 - `scripts/extract_datacube_contract.py`: fetch a specific `doc_id` page and extract `api_name`, parameter tables, output fields, and sample code
 - `scripts/download_datacube.py`: call `tushare_plus.DataCubeAPI.get_data()` from the command line and save the result
 
