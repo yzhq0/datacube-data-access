@@ -22,7 +22,7 @@ Selection rule:
 
 ## Terminal-first dictionary lookup
 
-Prefer the bundled `scripts/search_datacube_docs.sh` wrapper when working inside this skill.
+Prefer the bundled `scripts/search_datacube_docs.py` entry point when working inside this skill.
 It uses Python for root-index search and auto-selects a plain-text renderer for `doc_id` pages:
 
 - Windows or Windows-like shells: prefer the bundled Python renderer.
@@ -32,21 +32,22 @@ It uses Python for root-index search and auto-selects a plain-text renderer for 
 Search the root index when only a concept or catalog label is known:
 
 ```bash
-scripts/search_datacube_docs.sh 'A股日行情'
+python scripts/search_datacube_docs.py 'A股日行情'
 ```
 
 Inspect a known page in plain text:
 
 ```bash
-scripts/search_datacube_docs.sh --doc-id 10303 --lines 600:760
+python scripts/search_datacube_docs.py --doc-id 10303 --lines 600:760
 ```
 
 Use `rg` on the plain-text dump to jump to contract sections:
 
 ```bash
-scripts/search_datacube_docs.sh --doc-id 10303 --pattern '接口|输入参数|输出参数'
+python scripts/search_datacube_docs.py --doc-id 10303 --pattern '接口|输入参数|输出参数'
 ```
 
+If you are already in a Unix shell and want the old wrapper form, `scripts/search_datacube_docs.sh ...` still delegates to the Python entry point.
 If you are debugging on Unix and need the underlying tools directly, these are still valid:
 
 ```bash
