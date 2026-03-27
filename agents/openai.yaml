@@ -1,0 +1,4 @@
+interface:
+  display_name: "Datacube Data Access"
+  short_description: "Find DataCube APIs from data needs and download datasets"
+  default_prompt: "Use $datacube-data-access to find the right DataCube interface from a data requirement and download the dataset."
