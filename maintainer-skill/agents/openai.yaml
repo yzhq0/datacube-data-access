@@ -1,0 +1,4 @@
+interface:
+  display_name: "Datacube Data Access Maintainer"
+  short_description: "Promote durable Datacube skill findings and keep the repo clean"
+  default_prompt: "Use $datacube-data-access-maintainer to review local runtime notes, promote durable findings into shared references, and prepare clean repo-scoped updates."

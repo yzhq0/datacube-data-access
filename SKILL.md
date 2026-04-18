@@ -7,17 +7,26 @@ description: Find the correct DataCube data dictionary page or API from a data r
 
 ## Overview
 
-Turn a vague data need into a concrete DataCube API choice, confirm parameters and fields from the DataCube docs, and download the result through `tushare_plus`.
-Prefer DataCube self-owned datasets when they cover the requirement; switch to mounted sources like Wind only when the coverage or fields require it.
+Turn a vague data need into a concrete DataCube API choice, confirm the live contract from the DataCube docs, and download the result through `tushare_plus`.
+This skill is the pure-use entrypoint. It only covers API selection, contract validation, extraction pattern choice, download, and result validation.
 
 ## Quick Start
 
 1. Clarify the requirement into subject, frequency, time range, identifiers, source preference, and output fields.
-2. Read `references/datacube-playbook.md` for the core workflow. If the request involves ETF, Wind-mounted tables, or high-frequency market data, also read `references/topics/etf-wind.md`. If the request involves derived index moneyflow, constituent weights, or weight drift, also read `references/topics/index-moneyflow.md`.
-3. Search the docs with `python "$CODEX_HOME/skills/datacube-data-access/scripts/search_datacube_docs.py" "<keyword>"`. The script auto-selects a page renderer by platform, preferring `w3m` or `lynx` on Unix when available and the bundled Python renderer on Windows or minimal environments. Use `$playwright` when the site is easier to navigate in a real browser.
-4. Extract the contract from the chosen `doc_id` page and confirm `api_name`, required params, optional params, and field names.
-5. Decide the extraction pattern from both the contract and the table's observed data shape: range-first when interval filters work, split mode only when the API truly requires a per-code or per-date loop, and month-end snapshot mode when the table is effectively monthly. Also confirm the observed code format if the workflow may mix A-share, Hong Kong, or other markets.
-6. Download the dataset with `scripts/download_datacube.py`, using split mode only when the live API or the data shape really requires it.
+2. Start with `references/core/source-selection.md` and `references/core/doc-lookup.md`.
+3. Load additional references only when the task needs them:
+   - `references/core/contract-extraction.md`: before locking the API or field contract
+   - `references/core/download-validation.md`: before download or final reporting
+   - `references/domains/etf.md`: ETF, ETF high-frequency, or ETF benchmark workflows
+   - `references/domains/index-moneyflow.md`: derived index moneyflow, constituent weights, or weight drift
+   - `references/providers/wind.md`: Wind-mounted tables or doc/runtime mismatch on mounted data
+   - `references/patterns/interval-first.md`: choosing between range-first and split loops
+   - `references/patterns/monthly-snapshot.md`: the table behaves like monthly snapshots
+   - `references/patterns/mixed-market-normalization.md`: the workflow mixes A-share, Hong Kong, or other code families
+   - `references/patterns/anchor-and-drift.md`: monthly-to-daily weight drift estimation
+4. Search the docs with `python "$CODEX_HOME/skills/datacube-data-access/scripts/search_datacube_docs.py" "<keyword>"`.
+5. Extract the contract from the chosen `doc_id` page and confirm `api_name`, required params, optional params, field names, and paging constraints.
+6. Choose the extraction pattern from the live contract and the observed data shape, then download with `scripts/download_datacube.py`.
 7. Verify row count, date coverage, duplicates, null-heavy columns, and output path before reporting back.
 
 ## Workflow
@@ -30,17 +39,22 @@ Extract these items before picking an API:
 - Granularity: daily, intraday, announcement-level, security-level, fund-level, industry-level
 - Time scope: exact dates, rolling window, or full history
 - Entity filter: `ts_code`, list of codes, market, industry, fund, or index
-- Source constraint: prefer DataCube native, require Wind, or source-agnostic
+- Source constraint: prefer Wind, prefer DataCube native, require Wind, or source-agnostic
 - Output contract: columns to keep, file format, and destination path
 
 If any of these are missing and they affect API choice, ask for them or state the assumption explicitly.
 
 ### 2. Choose the source family
 
-Prefer DataCube native data when both of these are true:
+Read `references/core/source-selection.md`.
 
-- The dataset appears to cover the requirement.
-- The native interface avoids extra code mapping or multi-table joins.
+When Wind and DataCube native both cover the same data class, default to Wind unless the mounted interface is operationally unusable for the task or the user explicitly prefers native.
+
+Prefer DataCube native data when at least one of these is true:
+
+- Wind coverage is weaker or operationally unusable for the current task
+- The native interface materially simplifies the work without sacrificing the required coverage
+- The user explicitly prefers native over mounted data
 
 Use mounted sources such as Wind, 通联, 东财, or CYYX when at least one of these is true:
 
@@ -48,9 +62,22 @@ Use mounted sources such as Wind, 通联, 东财, or CYYX when at least one of t
 - The user explicitly asks for that provider.
 - The mounted source has the canonical version of the dataset the user expects.
 
-Treat Wind interfaces as higher-friction by default because internal code mapping is often required.
+Treat Wind interfaces as higher-friction in integration work, but still preferred over native for same-class long-lived datasets because coverage is usually broader and expected data quality is higher.
+Do not choose 通联 as a default long-term dependency unless there is no acceptable alternative and the user explicitly accepts the availability risk.
+
+### 2.1 Known code-format defaults
+
+Do not rediscover code formats from scratch when the table family is already known. Start from these defaults, then validate on a realistic sample if the table is unfamiliar:
+
+- DataCube native A-share, fund, and index tables usually use Tushare-style suffixed codes such as `000001.SZ`, `510300.SH`, and `000300.SH`
+- Wind-mounted A-share quote and moneyflow tables commonly use the same suffixed style in returned rows
+- Some Wind index-weight interfaces expect raw index codes without exchange suffix for input, for example `000300` rather than `000300.SH`
+- Wind Hong Kong quote tables can use unpadded HK codes such as `0700.HK`, `2892.HK`, and `80700.HK`
+- Some Wind commodity and futures tables use venue-style codes such as `Au9999.SGE`
 
 ### 3. Locate the dictionary page
+
+Read `references/core/doc-lookup.md`.
 
 If the API name is unknown:
 
@@ -66,6 +93,8 @@ Do not guess `api_name`, field names, or parameter semantics from a similar page
 
 ### 4. Extract the API contract
 
+Read `references/core/contract-extraction.md`.
+
 Capture these details from the chosen page:
 
 - `api_name`
@@ -77,8 +106,15 @@ Capture these details from the chosen page:
 - Whether the table behaves like a true daily table, a monthly snapshot table, or a mixed-frequency table in realistic samples
 - Whether the live rows use one code family or mixed code families that require normalization before downstream joins
 
+Do not guess business field semantics from incomplete comments, especially on Wind-mounted tables. If field comments are missing, ambiguous, or clearly hand-written rather than authoritative, ask for the original WIND table data dictionary instead of inventing meanings.
+
 When multiple APIs look similar, explain why one is the better fit.
-For ETF, high-frequency, and Wind-mounted tables, cross-check `references/topics/etf-wind.md` before finalizing the interface because the live API may differ from the doc page in filter support, parameter case, or ETF coverage. For derived index-moneyflow and weight-drift work, also cross-check `references/topics/index-moneyflow.md`.
+Load extra references only when they materially affect the decision:
+
+- `references/domains/etf.md`: ETF-specific table coverage or ETF high-frequency interfaces
+- `references/domains/index-moneyflow.md`: index weights, constituent coverage, or drift-based derived series
+- `references/providers/wind.md`: mounted-table parameter quirks, transport flakiness, or coverage mismatch
+- `references/patterns/mixed-market-normalization.md`: mixed code families or cross-market constituent joins
 
 Prefer the bundled contract extractor when the page structure is standard:
 
@@ -88,7 +124,23 @@ python "$CODEX_HOME/skills/datacube-data-access/scripts/extract_datacube_contrac
 
 Use `--format json` when the contract needs to be piped into another script.
 
-### 5. Download the data
+### 5. Choose the extraction pattern
+
+Use the live interface behavior and sampled data shape, not the doc title alone.
+
+- Load `references/patterns/interval-first.md` when deciding between range-first and split loops.
+- Load `references/patterns/monthly-snapshot.md` when the table is effectively anchor snapshots rather than true daily observations.
+- Load `references/patterns/mixed-market-normalization.md` when identifiers may mix markets or code families.
+- Load `references/patterns/anchor-and-drift.md` only for monthly-to-daily weight drift or similar derived workflows.
+
+Prefer interval-first when the API supports workable ranges.
+Use split mode only when the live API truly requires a per-code or per-date loop.
+Treat repeated `503` or `IncompleteRead(...)` as flakiness first, not proof that the filter is unsupported.
+If a time-series interface is missing start or end range filters and that forces day-by-day extraction, finish the task when feasible but call out the efficiency cost and recommend that backend add proper range parameters.
+
+### 6. Download the data
+
+Read `references/core/download-validation.md`.
 
 Prefer the bundled script:
 
@@ -123,7 +175,7 @@ Important defaults:
 - For monthly snapshot tables, validate the distinct dates and code coverage before defaulting to a daily pull pattern.
 - For mixed-market constituent workflows, validate the observed code format early and build local filters from runtime samples instead of assumed code padding rules.
 
-### 6. Validate and report
+### 7. Validate and report
 
 Before finishing:
 
@@ -135,6 +187,7 @@ Before finishing:
 - Call out data-shape mismatches, such as a nominally daily table that is only practically useful on month-end snapshots for the target universe.
 - Distinguish structural interface gaps from transient transport errors. If the real problem is repeated `503` or `IncompleteRead(...)`, say that the table is flaky rather than claiming the filter is unsupported.
 - If the table is missing a filter that would materially improve correctness or efficiency, say so explicitly, continue with the best currently available parameters when feasible, and suggest the missing filter to the user so they can ask maintainers to add it.
+- If Wind field comments are missing or ambiguous, say that the field meaning should be confirmed from the original WIND table data dictionary instead of guessing from the current interface page.
 - Report the chosen source, API name, key parameters, output file path, and remaining caveats.
 
 ## Scripts
@@ -146,16 +199,21 @@ Before finishing:
 
 ## References
 
-- `references/datacube-playbook.md`: source-selection rules, document browsing patterns, and `tushare_plus` notes
-- `references/topics/etf-wind.md`: observed ETF and Wind runtime caveats, interface selection notes, and high-frequency ETF coverage
-- `references/topics/index-moneyflow.md`: derived index-moneyflow, constituent-weight, and monthly weight-drift notes
+- `references/core/*.md`: general workflow, doc lookup, contract extraction, and download validation
+- `references/domains/*.md`: domain-specific tables and derived-series guidance
+- `references/providers/*.md`: provider-specific runtime quirks
+- `references/patterns/*.md`: reusable extraction and modeling patterns
 
 ## Guardrails
 
 - Prefer confirming doc pages over inferring from memory.
-- Prefer DataCube native data when it avoids unnecessary joins or code mapping.
+- Prefer Wind over DataCube native when both cover the same data class and long-lived quality or completeness matters.
+- Use DataCube native when it materially simplifies the task without losing required coverage, or when Wind is operationally unsuitable.
+- Treat 通联 as a risky long-term dependency unless the user explicitly accepts that tradeoff.
 - Call out when Wind or other mounted sources may require extra mapping logic after download.
+- Load the narrowest reference set that can decide the current step.
 - Do not assume the documented parameter names, case, or ETF coverage are accurate until you verify them in runtime on a realistic sample.
-- Do not assume all `con_code` or ETF/index identifiers belong to the same market or use the same code-padding rule until you inspect real rows.
+- Do not assume all `con_code` or ETF/index identifiers belong to the same market or use the same code-padding rule until you inspect real rows, but start from the known source-specific defaults in this skill before re-exploring.
+- Do not guess Wind business field semantics from sparse comments; request the original WIND dictionary when needed.
 - When a missing filter is the real blocker, raise it early instead of silently accepting an expensive or incomplete pull.
 - Keep outputs reproducible by stating the exact API, parameters, and file path used.
