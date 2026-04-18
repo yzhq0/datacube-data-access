@@ -9,6 +9,7 @@ description: Maintain the datacube-data-access skill by reviewing local runtime 
 
 This is the maintainer-only companion skill for `datacube-data-access`.
 Use it to review private runtime notes, decide what is durable enough for the shared repo, update the versioned references, clean repository noise, and prepare small PR-scoped changes.
+When editing shared files or running bundled scripts, work from the `datacube-data-access` skill root and use repo-relative paths. Do not rely on shell-specific `$CODEX_HOME/...` command examples.
 
 Do not use this skill for ordinary data pulls. The user-facing skill stays pure-use and should not absorb git or maintenance workflow.
 
@@ -16,12 +17,12 @@ Do not use this skill for ordinary data pulls. The user-facing skill stays pure-
 
 1. Read private runtime notes from `~/.codex/state/datacube-data-access/runtime-notes/`.
 2. Keep tentative or task-local observations in private state. Promote only durable findings that change source choice, API choice, parameter shape, extraction pattern, or risk judgment.
-3. Update the narrowest shared file in `$CODEX_HOME/skills/datacube-data-access/references/`:
-   - `$CODEX_HOME/skills/datacube-data-access/references/core/*.md` for stable workflow rules
-   - `$CODEX_HOME/skills/datacube-data-access/references/domains/*.md` for domain-specific guidance
-   - `$CODEX_HOME/skills/datacube-data-access/references/providers/*.md` for provider-specific runtime quirks
-   - `$CODEX_HOME/skills/datacube-data-access/references/patterns/*.md` for reusable extraction or modeling patterns
-4. Use `$CODEX_HOME/skills/datacube-data-access/scripts/capture_runtime_note.py` to record new observations into private state without touching the repo.
+3. Update the narrowest shared file in `references/`:
+   - `references/core/*.md` for stable workflow rules
+   - `references/domains/*.md` for domain-specific guidance
+   - `references/providers/*.md` for provider-specific runtime quirks
+   - `references/patterns/*.md` for reusable extraction or modeling patterns
+4. Use `python scripts/capture_runtime_note.py ...` to record new observations into private state without touching the repo.
 5. Keep repo hygiene tight: clean caches, update tests, and prefer branch-scoped small PRs.
 
 ## Workflow
@@ -69,10 +70,10 @@ Do not promote:
 
 ### 3. Pick the right destination
 
-- `$CODEX_HOME/skills/datacube-data-access/references/core/*.md`: stable, general rules
-- `$CODEX_HOME/skills/datacube-data-access/references/domains/*.md`: ETF, index-moneyflow, or other domain logic
-- `$CODEX_HOME/skills/datacube-data-access/references/providers/*.md`: Wind or other provider quirks
-- `$CODEX_HOME/skills/datacube-data-access/references/patterns/*.md`: interval-first, monthly snapshots, mixed-market normalization, or anchor-and-drift style techniques
+- `references/core/*.md`: stable, general rules
+- `references/domains/*.md`: ETF, industry-classification, index-moneyflow, or other domain logic
+- `references/providers/*.md`: Wind or other provider quirks
+- `references/patterns/*.md`: interval-first, monthly snapshots, mixed-market normalization, or anchor-and-drift style techniques
 
 Prefer editing one narrow file over creating a new catch-all document.
 Current-task warnings about inefficient parameter design or missing field semantics belong in the user-facing skill and provider references, because they affect ordinary execution.
@@ -83,12 +84,7 @@ Use this maintainer skill to promote repeated cases into those shared docs after
 Use the helper script:
 
 ```bash
-python "$CODEX_HOME/skills/datacube-data-access/scripts/capture_runtime_note.py" \
-  --task "ETF share snapshot validation" \
-  --topic etf \
-  --summary "mf_floatshare returned Shanghai ETFs despite Shenzhen wording" \
-  --evidence "Runtime sample on 2026-03-19 returned 510300.SH rows" \
-  --impact "Keep exchange wording out of the selection rule and treat docs as coverage hints only."
+python scripts/capture_runtime_note.py --task "ETF share snapshot validation" --topic etf --summary "mf_floatshare returned Shanghai ETFs despite Shenzhen wording" --evidence "Runtime sample on 2026-03-19 returned 510300.SH rows" --impact "Keep exchange wording out of the selection rule and treat docs as coverage hints only."
 ```
 
 By default, notes go to `~/.codex/state/datacube-data-access/runtime-notes/`.

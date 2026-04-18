@@ -9,6 +9,7 @@ description: Find the correct DataCube data dictionary page or API from a data r
 
 Turn a vague data need into a concrete DataCube API choice, confirm the live contract from the DataCube docs, and download the result through `tushare_plus`.
 This skill is the pure-use entrypoint. It only covers API selection, contract validation, extraction pattern choice, download, and result validation.
+When running bundled commands, prefer executing them from the `datacube-data-access` skill root and use repo-relative paths. This keeps examples portable across Unix shells, PowerShell, and `cmd.exe`.
 
 ## Quick Start
 
@@ -18,13 +19,14 @@ This skill is the pure-use entrypoint. It only covers API selection, contract va
    - `references/core/contract-extraction.md`: before locking the API or field contract
    - `references/core/download-validation.md`: before download or final reporting
    - `references/domains/etf.md`: ETF, ETF high-frequency, or ETF benchmark workflows
+   - `references/domains/industries.md`: industry classification, Shenwan industry mapping, or industry-code joins
    - `references/domains/index-moneyflow.md`: derived index moneyflow, constituent weights, or weight drift
    - `references/providers/wind.md`: Wind-mounted tables or doc/runtime mismatch on mounted data
    - `references/patterns/interval-first.md`: choosing between range-first and split loops
    - `references/patterns/monthly-snapshot.md`: the table behaves like monthly snapshots
    - `references/patterns/mixed-market-normalization.md`: the workflow mixes A-share, Hong Kong, or other code families
    - `references/patterns/anchor-and-drift.md`: monthly-to-daily weight drift estimation
-4. Search the docs with `python "$CODEX_HOME/skills/datacube-data-access/scripts/search_datacube_docs.py" "<keyword>"`.
+4. Search the docs with `python scripts/search_datacube_docs.py "<keyword>"`.
 5. Extract the contract from the chosen `doc_id` page and confirm `api_name`, required params, optional params, field names, and paging constraints.
 6. Choose the extraction pattern from the live contract and the observed data shape, then download with `scripts/download_datacube.py`.
 7. Verify row count, date coverage, duplicates, null-heavy columns, and output path before reporting back.
@@ -35,7 +37,7 @@ This skill is the pure-use entrypoint. It only covers API selection, contract va
 
 Extract these items before picking an API:
 
-- Data domain: quote, financial statement, holdings, industry, macro, fund, bond, or another domain
+- Data domain: quote, financial statement, holdings, industry classification, macro, fund, bond, or another domain
 - Granularity: daily, intraday, announcement-level, security-level, fund-level, industry-level
 - Time scope: exact dates, rolling window, or full history
 - Entity filter: `ts_code`, list of codes, market, industry, fund, or index
@@ -74,6 +76,7 @@ Do not rediscover code formats from scratch when the table family is already kno
 - Some Wind index-weight interfaces expect raw index codes without exchange suffix for input, for example `000300` rather than `000300.SH`
 - Wind Hong Kong quote tables can use unpadded HK codes such as `0700.HK`, `2892.HK`, and `80700.HK`
 - Some Wind commodity and futures tables use venue-style codes such as `Au9999.SGE`
+- Industry-classification workflows can require normalized prefixes rather than raw full-code equality; read `references/domains/industries.md` before designing the join
 
 ### 3. Locate the dictionary page
 
@@ -81,12 +84,12 @@ Read `references/core/doc-lookup.md`.
 
 If the API name is unknown:
 
-- Run `python "$CODEX_HOME/skills/datacube-data-access/scripts/search_datacube_docs.py" "<keyword>"` to search the DataCube document index. The script uses Python for index search and auto-selects a doc-page renderer by platform.
+- Run `python scripts/search_datacube_docs.py "<keyword>"` to search the DataCube document index. The script uses Python for index search and auto-selects a doc-page renderer by platform.
 - Use `$playwright` or the installed Playwright CLI skill when the navigation depends on live menus, JavaScript rendering, or repeated drilling through the site.
 
 If `doc_id` is already known:
 
-- Run `python "$CODEX_HOME/skills/datacube-data-access/scripts/search_datacube_docs.py" --doc-id <id>` to dump the page text.
+- Run `python scripts/search_datacube_docs.py --doc-id <id>` to dump the page text.
 - Add `--pattern "输入参数|输出参数|接口"` to jump to the contract faster.
 
 Do not guess `api_name`, field names, or parameter semantics from a similar page. Confirm them on the actual page you intend to use.
@@ -112,6 +115,7 @@ When multiple APIs look similar, explain why one is the better fit.
 Load extra references only when they materially affect the decision:
 
 - `references/domains/etf.md`: ETF-specific table coverage or ETF high-frequency interfaces
+- `references/domains/industries.md`: industry classification tables, dictionary joins, or Shenwan code hierarchy
 - `references/domains/index-moneyflow.md`: index weights, constituent coverage, or drift-based derived series
 - `references/providers/wind.md`: mounted-table parameter quirks, transport flakiness, or coverage mismatch
 - `references/patterns/mixed-market-normalization.md`: mixed code families or cross-market constituent joins
@@ -119,7 +123,7 @@ Load extra references only when they materially affect the decision:
 Prefer the bundled contract extractor when the page structure is standard:
 
 ```bash
-python "$CODEX_HOME/skills/datacube-data-access/scripts/extract_datacube_contract.py" 10303
+python scripts/extract_datacube_contract.py 10303
 ```
 
 Use `--format json` when the contract needs to be piped into another script.
@@ -145,23 +149,13 @@ Read `references/core/download-validation.md`.
 Prefer the bundled script:
 
 ```bash
-python "$CODEX_HOME/skills/datacube-data-access/scripts/download_datacube.py" \
-  daily \
-  --param ts_code=000001.SZ \
-  --fields ts_code,trade_date,open,high,low,close,vol \
-  --out output/daily.csv
+python scripts/download_datacube.py daily --param ts_code=000001.SZ --fields ts_code,trade_date,open,high,low,close,vol --out output/daily.csv
 ```
 
 For APIs that must be queried one code or one trading date at a time:
 
 ```bash
-python "$CODEX_HOME/skills/datacube-data-access/scripts/download_datacube.py" \
-  fund_daily \
-  --split-by trade_date \
-  --split-values 20260309,20260310 \
-  --param ts_code=510300.SH \
-  --fields ts_code,trade_date,open,high,low,close,vol \
-  --out output/fund_daily.csv
+python scripts/download_datacube.py fund_daily --split-by trade_date --split-values 20260309,20260310 --param ts_code=510300.SH --fields ts_code,trade_date,open,high,low,close,vol --out output/fund_daily.csv
 ```
 
 Important defaults:
