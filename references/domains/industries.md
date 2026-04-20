@@ -19,6 +19,12 @@ For Wind stock-industry classification, the general pattern is the same across S
 
 Use prefix normalization first, then join to the dictionary.
 
+Observed Wind table names:
+
+- Shenwan 2021 classification: `ashare_swnindustriesclass`
+- CITICS classification: `ashare_ind_class_citics`
+- shared dictionary: `a_share_Industriescode`
+
 Observed hierarchy rule:
 
 - first 4 characters identify the level-1 industry
@@ -39,10 +45,12 @@ Observed dictionary rule:
 - if the task wants level-1, level-2, or level-3 aggregation, build the join key from the corresponding prefix length instead of trimming after the join
 - keep the hierarchy-level rule explicit in the result so downstream users know whether the output is level 1, 2, or 3
 - document the prefix-length rule in your query or transformation output rather than assuming the next task will rediscover it
+- for stock-industry interval membership, treat `remove_dt` as the last effective date after validating the table; an observed Shenwan transition used `remove_dt` on one day and the replacement `entry_dt` on the next day
+- do not automatically copy this inclusive `remove_dt` rule to non-industry interval tables such as ST flags; validate each table's interval semantics independently
 
 ## Shenwan example
 
-- classification table: `a_share_swindustriesclass`
+- classification table: `ashare_swnindustriesclass`
 - compact code field: `sw_ind_code`
 - validate whether `sw_ind_code` is actually accepted as a selective server-side filter before you depend on it in extraction logic
 

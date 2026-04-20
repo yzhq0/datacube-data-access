@@ -28,6 +28,18 @@ Read this file when the task uses Wind-mounted tables or a mounted-table doc/run
 - transient `HTTP Error 503` and `IncompleteRead(...)` occurred on otherwise valid tables
 - some `.MI`, `.SPI`, and `.CI` codes existed in `aindex_desc` but returned zero rows in `aindex_daily`
 
+## A-share risk-model table notes
+
+Use these notes when building A-share universes, factor models, or historical panels from Wind-mounted tables:
+
+- prefer `a_desc` over a current listed-only master table for historical backtests; normalize `code` to the security id, keep `listdate` and `delistdate`, and include delisted names before applying an as-of listed filter
+- do not treat `list_status='L'` from a current snapshot as a historical universe definition; it can introduce survivorship bias when the downstream task needs dates before today
+- `a_share_eod_derivativeIndicator` is the Wind valuation/derivative source for fields such as market value, float market value, PB, PE TTM, and free-float turnover; use it instead of native `daily_basic` when the project standard is Wind
+- for `a_daily`, prefer `tradestatuscode` over the Chinese `tradestatus` label when deciding tradeability; observed active labels include `交易`, `XD`, `XR`, and `DR`, while `tradestatuscode = 0` indicates suspension
+- do not interpret all null `resump_date` values in `a_suspension` as open-ended suspensions without cross-checking quotes; historical one-day suspensions can have null `resump_date`, so validate against `a_daily.tradestatuscode`
+- for `ashare_fin_indicators`, keep point-in-time financial snapshots anchored on `ann_dt <= trade_date` and then the latest `report_period`; if field comments are missing, confirm factor semantics from the original WIND dictionary before using the columns
+- before replacing a third-party consensus source with a Wind consensus table, sample the latest available date and coverage first; do not assume the Wind-mounted table is fresher or operationally equivalent
+
 ## Decision discipline
 
 - retry transient transport failures before changing the extraction pattern

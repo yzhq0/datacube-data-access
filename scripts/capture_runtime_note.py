@@ -118,6 +118,20 @@ def resolve_note_dir(override: Path | None) -> Path:
     return DEFAULT_NOTE_DIR
 
 
+def next_note_path(note_dir: Path, timestamp: datetime, topic: str) -> Path:
+    base_name = f"{timestamp.strftime('%Y%m%d-%H%M%S')}-{slugify(topic)}"
+    note_path = note_dir / f"{base_name}.md"
+    if not note_path.exists():
+        return note_path
+
+    suffix = 2
+    while True:
+        candidate = note_dir / f"{base_name}-{suffix}.md"
+        if not candidate.exists():
+            return candidate
+        suffix += 1
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
@@ -126,8 +140,7 @@ def main() -> int:
     note_dir = resolve_note_dir(args.note_dir)
     note_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = f"{now.strftime('%Y%m%d-%H%M%S')}-{slugify(args.topic)}.md"
-    note_path = note_dir / filename
+    note_path = next_note_path(note_dir, now, args.topic)
     note_path.write_text(render_note(args, now), encoding="utf-8")
     print(note_path)
     return 0

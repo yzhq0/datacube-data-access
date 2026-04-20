@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import importlib.util
 import subprocess
 import sys
 from pathlib import Path
@@ -55,3 +56,26 @@ def test_capture_runtime_note_writes_markdown(tmp_path) -> None:
     assert "- `trade_date` = `20260319`" in content
     assert "mf_floatshare returned Shanghai ETF rows" in content
     assert "Treat exchange wording as a hint rather than a hard filter." in content
+
+
+def test_capture_runtime_note_does_not_overwrite_same_second_topic(tmp_path) -> None:
+    spec = importlib.util.spec_from_file_location("capture_runtime_note", SCRIPT_PATH)
+    assert spec and spec.loader
+    capture_runtime_note = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(capture_runtime_note)
+
+    note_dir = tmp_path / "runtime-notes"
+    timestamp = capture_runtime_note.datetime(2026, 4, 20, 10, 25, 53)
+    first = capture_runtime_note.next_note_path(note_dir, timestamp, "a-share-risk-model")
+    note_dir.mkdir(parents=True)
+    first.write_text("first", encoding="utf-8")
+
+    second = capture_runtime_note.next_note_path(note_dir, timestamp, "a-share-risk-model")
+    second.write_text("second", encoding="utf-8")
+    third = capture_runtime_note.next_note_path(note_dir, timestamp, "a-share-risk-model")
+
+    assert first.name == "20260420-102553-a-share-risk-model.md"
+    assert second.name == "20260420-102553-a-share-risk-model-2.md"
+    assert third.name == "20260420-102553-a-share-risk-model-3.md"
+    assert first.read_text(encoding="utf-8") == "first"
+    assert second.read_text(encoding="utf-8") == "second"
