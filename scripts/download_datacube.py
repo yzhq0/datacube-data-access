@@ -108,6 +108,59 @@ def build_parser() -> argparse.ArgumentParser:
         help="Maximum pages to request. Mainly useful with concurrent mode.",
     )
     parser.add_argument(
+        "--limit-per-request",
+        type=int,
+        help=(
+            "Override the runtime-detected page size. Use only after the interface limit "
+            "has been verified or for bounded smoke tests."
+        ),
+    )
+    parser.add_argument(
+        "--no-detect-limit",
+        action="store_true",
+        help=(
+            "Skip request-limit detection and use the client fallback page size when "
+            "--limit-per-request is not set. Advanced repeat-run option; keep detection "
+            "enabled for first-time interface use."
+        ),
+    )
+    parser.add_argument(
+        "--request-timeout",
+        type=float,
+        default=60.0,
+        help="Per-request HTTP timeout in seconds. Default: 60.",
+    )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=3,
+        help="Maximum retry count for retryable API or transport failures. Default: 3.",
+    )
+    parser.add_argument(
+        "--retry-delay",
+        type=float,
+        default=1.0,
+        help="Initial retry delay in seconds. Default: 1.",
+    )
+    parser.add_argument(
+        "--retry-backoff",
+        type=float,
+        default=2.0,
+        help="Exponential retry backoff multiplier. Default: 2.",
+    )
+    parser.add_argument(
+        "--retry-jitter",
+        type=float,
+        default=0.1,
+        help="Retry jitter ratio applied to the current delay. Default: 0.1.",
+    )
+    parser.add_argument(
+        "--max-retry-delay",
+        type=float,
+        default=60.0,
+        help="Maximum retry sleep in seconds. Default: 60.",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         help="Output file path. Suffix decides the format unless --format is set.",
@@ -323,6 +376,8 @@ def run_single_request(
     auto_paging: bool,
     concurrent: bool,
     max_pages: int | None,
+    limit_per_request: int | None,
+    detect_limit: bool,
     params: dict[str, Any],
 ) -> Any:
     return client.get_data(
@@ -331,6 +386,8 @@ def run_single_request(
         auto_paging=auto_paging,
         concurrent=concurrent,
         max_pages=max_pages,
+        limit_per_request=limit_per_request,
+        detect_limit=detect_limit,
         **params,
     )
 
@@ -357,6 +414,8 @@ def run_split_requests(
                 auto_paging=not args.no_auto_paging,
                 concurrent=args.concurrent,
                 max_pages=args.max_pages,
+                limit_per_request=args.limit_per_request,
+                detect_limit=not args.no_detect_limit,
                 params=batch_params,
             )
         except Exception as exc:  # noqa: BLE001
@@ -395,9 +454,25 @@ def main() -> int:
     args = parser.parse_args()
     params = merge_params(args.param, args.params_json)
     split_values = resolve_split_values(args)
+    if args.no_detect_limit and args.limit_per_request is None:
+        print(
+            "Warning: --no-detect-limit without --limit-per-request uses the client fallback "
+            "page size. Keep detection enabled for first-time interface use.",
+            file=sys.stderr,
+        )
 
     try:
-        client = DataCubeAPI(token=args.token) if args.token else DataCubeAPI()
+        client_kwargs = {
+            "request_timeout": args.request_timeout,
+            "max_retries": args.max_retries,
+            "retry_delay": args.retry_delay,
+            "retry_backoff": args.retry_backoff,
+            "retry_jitter": args.retry_jitter,
+            "max_retry_delay": args.max_retry_delay,
+        }
+        if args.token:
+            client_kwargs["token"] = args.token
+        client = DataCubeAPI(**client_kwargs)
         if split_values:
             df = run_split_requests(client=client, args=args, params=params, split_values=split_values)
         else:
@@ -408,6 +483,8 @@ def main() -> int:
                 auto_paging=not args.no_auto_paging,
                 concurrent=args.concurrent,
                 max_pages=args.max_pages,
+                limit_per_request=args.limit_per_request,
+                detect_limit=not args.no_detect_limit,
                 params=params,
             )
     except Exception as exc:  # noqa: BLE001

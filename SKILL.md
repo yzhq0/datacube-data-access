@@ -161,7 +161,9 @@ python scripts/download_datacube.py fund_daily --split-by trade_date --split-val
 Important defaults:
 
 - `auto_paging` stays enabled unless there is a reason to cap the query.
-- If you only need a bounded sample and `DataCubeAPI` spends too long probing request limits, prefer `auto_paging=False` plus an explicit `limit` that matches the documented single-call cap.
+- Keep request-limit detection enabled on first use of an interface. DataCube docs can lag the runtime contract, so page limits shown on the page are hints rather than authority.
+- Use `--limit-per-request` only after the interface limit has been verified by a prior run or for bounded smoke tests. Use `--no-detect-limit` only as an advanced repeat-run option; do not skip detection before a new large pull.
+- For flaky long pulls, prefer explicit `--request-timeout`, `--max-retries`, `--retry-backoff`, and `--retry-jitter` before falling back to finer split loops.
 - Narrow `fields` aggressively to avoid pulling unnecessary columns.
 - Use `--concurrent` only for large pulls where extra requests are worth the complexity.
 - Ensure `DATACUBE_TOKEN` exists in the environment, or pass `--token` explicitly.

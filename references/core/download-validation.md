@@ -18,10 +18,14 @@ Important runtime note:
 ## Download habits
 
 - Keep `auto_paging=True` unless you have a reason to cap the query
-- If a bounded sample is enough and limit probing is slow, use `auto_paging=False` plus an explicit documented `limit`
+- Keep request-limit detection enabled on first use of an interface; documented limits are often useful hints but can lag runtime behavior
+- Use `--limit-per-request` only after a prior run has verified the safe page size, or for small bounded smoke tests where the chosen page size cannot over-fetch
+- Use `--no-detect-limit` only for repeat runs against a verified interface; if it is used without `--limit-per-request`, the client fallback page size is applied
+- For flaky long pulls, tune `--request-timeout`, `--max-retries`, `--retry-backoff`, `--retry-jitter`, and `--max-retry-delay` before assuming the interface must be split more finely
 - Narrow `fields` early so the pull stays small and inspection stays cheap
 - Use `concurrent=True` only when the request volume is large enough to justify the extra complexity
 - Save to an explicit output path and report that path back to the user
+- For custom Python pipelines, `DataCubeAPI.get_data(..., return_type="pandas|polars|arrow|raw")` can avoid unnecessary downstream conversion; the CLI still writes tabular outputs through pandas
 
 ## Validation checklist
 
