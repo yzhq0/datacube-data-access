@@ -17,6 +17,20 @@ For the chosen page, confirm:
 When code families may mix, also confirm the observed identifier format before downstream joins.
 If the table is Wind-mounted and field comments are sparse, missing, or obviously hand-authored, do not infer business semantics from those comments alone. Ask for the original WIND table data dictionary when the field meaning matters.
 
+## Field semantic axes
+
+Do not collapse a field definition into one free-text label. Record, independently:
+
+- business meaning, for example closing price versus settlement price
+- unit, scale, storage type, and displayed precision
+- adjustment basis, for example unadjusted, forward-adjusted, or backward-adjusted
+- dividend/distribution and total-return treatment
+- observation timestamp or effective date
+- information-availability or publication timestamp for point-in-time work
+- evidence source and whether each axis is confirmed or still unknown
+
+Confirmation on one axis does not fill another. In particular, "closing price" does not imply adjusted price, total-return price, or any dividend treatment.
+
 ## Preferred extractor
 
 Use the bundled contract extractor when the page structure is standard:
