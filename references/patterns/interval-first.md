@@ -17,6 +17,19 @@ Use split mode only when at least one of these is true:
 - retry flakiness before assuming the table requires a loop
 - if the table gained `start_date/end_date` support, drop the older per-day workaround
 - keep the interval bounded and filter locally when that is materially simpler than many fine-grained calls
+- use `range pull -> key audit -> anomalous natural-partition re-fetch`: first pull the widest reliable range, compare observed keys with the independent expected-key set, and re-fetch only affected dates, entities, or months
+- after every repair, rebuild the combined result and repeat the full key audit; never infer completeness from the repaired partition alone
+
+## Entity-interval panels
+
+When an external membership or universe table defines the required panel:
+
+1. derive each entity's inclusive minimum and maximum required dates
+2. query one workable interval per entity
+3. filter the returned rows to the exact expected `(date, entity)` keys
+4. audit missing, extra, and duplicate keys after the filter
+
+Rows outside active membership are expected interval over-fetch, not automatically bad source data. They must not leak into the final panel.
 
 ## Interfaces re-validated for interval-first use
 
