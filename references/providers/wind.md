@@ -15,6 +15,13 @@ Read this file when the task uses Wind-mounted tables or a mounted-table doc/run
 - do not guess business meaning from a sparse Chinese comment, a shortened alias, or an obviously incomplete annotation
 - if the task depends on the precise business meaning of a field and the current page is weak, ask for the original WIND table data dictionary
 - treat the interface page as a starting point, not the final authority, when field annotations are missing
+- when a mounted backend page omits or truncates field descriptions, the original WIND table data dictionary takes precedence for business-field semantics; keep runtime behavior as separate evidence for parameter and coverage validation
+
+## Confirmed price-field contracts
+
+- The original WIND dictionary confirms `aindex_csi1000weight.closevalue` as the unadjusted closing price. Do not treat it as an adjusted or total-return price merely because it is used in an index-constituent table.
+- For `a_daily` (`doc_id 10303`), the DataCube page describes adjusted close as `close * adjfactor` with two displayed price decimals; runtime validation confirmed `adjclose == round(close * adjfactor, 2)` for the tested data. This is bounded evidence from that page and sample, not an original-WIND-dictionary claim. Future pulls should repeat the check with an explicitly declared cent-level tolerance and must not demand binary equality to the unrounded floating-point product.
+- These two statements are table-and-field specific. They do not establish a universal price convention for other Wind-mounted tables.
 
 ## Parameter design discipline
 

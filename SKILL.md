@@ -109,6 +109,8 @@ Capture these details from the chosen page:
 - Whether the table behaves like a true daily table, a monthly snapshot table, or a mixed-frequency table in realistic samples
 - Whether the live rows use one code family or mixed code families that require normalization before downstream joins
 
+For every business-critical field, keep these semantic axes separate: business meaning, unit/scale and displayed precision, price-adjustment basis, distribution or total-return treatment, observation timestamp, information-availability timestamp, and evidence source. A confirmed label such as "closing price" does not by itself establish any of the other axes.
+
 Do not guess business field semantics from incomplete comments, especially on Wind-mounted tables. If field comments are missing, ambiguous, or clearly hand-written rather than authoritative, ask for the original WIND table data dictionary instead of inventing meanings.
 
 When multiple APIs look similar, explain why one is the better fit.
