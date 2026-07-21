@@ -39,6 +39,45 @@ def test_user_skill_embeds_source_and_dictionary_guidance() -> None:
     assert "python scripts/search_datacube_docs.py" in skill_text
 
 
+def test_user_skill_requires_key_level_completeness_evidence() -> None:
+    skill_text = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    assert "`auto_paging=True` is an execution setting, not completeness evidence" in skill_text
+    assert "range pull -> key audit -> anomalous natural-partition re-fetch" in skill_text
+    assert "entity interval -> exact expected-key filter" in skill_text
+
+
+def test_download_reference_separates_execution_from_dataset_completeness() -> None:
+    text = (REPO_ROOT / "references" / "core" / "download-validation.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "execution manifest" in text
+    assert "dataset manifest" in text
+    assert "expected-key" in text
+    assert "group-cardinality" in text
+    assert "partial" in text
+    assert "--request-plan" in text
+    assert "--checkpoint-dir" in text
+    assert "--expected-keys" in text
+    assert "--doc-id" in text
+    assert "tushare_plus>=0.1.9" in text
+    assert "cannot detect an entirely absent group" in text
+
+
+def test_wind_reference_records_confirmed_price_semantics() -> None:
+    text = (REPO_ROOT / "references" / "providers" / "wind.md").read_text(
+        encoding="utf-8"
+    )
+
+    assert "aindex_csi1000weight.closevalue" in text
+    assert "unadjusted closing price" in text
+    assert "a_daily" in text
+    assert "doc_id 10303" in text
+    assert "round(close * adjfactor, 2)" in text
+    assert "original WIND table data dictionary takes precedence" in text
+
+
 def test_skill_docs_avoid_codex_home_shell_paths() -> None:
     user_skill = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
     maintainer_skill = (REPO_ROOT / "maintainer-skill" / "SKILL.md").read_text(encoding="utf-8")

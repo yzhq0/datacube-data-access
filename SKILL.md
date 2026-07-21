@@ -29,7 +29,7 @@ When running bundled commands, prefer executing them from the `datacube-data-acc
 4. Search the docs with `python scripts/search_datacube_docs.py "<keyword>"`.
 5. Extract the contract from the chosen `doc_id` page and confirm `api_name`, required params, optional params, field names, and paging constraints.
 6. Choose the extraction pattern from the live contract and the observed data shape, then download with `scripts/download_datacube.py`.
-7. Verify row count, date coverage, duplicates, null-heavy columns, and output path before reporting back.
+7. Verify expected-key coverage, group cardinality, duplicates, date coverage, null-heavy columns, and output hashes before reporting back.
 
 ## Workflow
 
@@ -144,6 +144,9 @@ Use split mode only when the live API truly requires a per-code or per-date loop
 Treat repeated `503` or `IncompleteRead(...)` as flakiness first, not proof that the filter is unsupported.
 If a time-series interface is missing start or end range filters and that forces day-by-day extraction, finish the task when feasible but call out the efficiency cost and recommend that backend add proper range parameters.
 
+Use this recovery order for large pulls: `range pull -> key audit -> anomalous natural-partition re-fetch`. Do not replace a workable range query with thousands of small calls before the key audit identifies which dates, entities, or months are actually anomalous.
+For a panel whose expected keys come from historical membership, prefer `entity interval -> exact expected-key filter`: query each entity over its minimum-to-maximum required interval, then retain and audit the exact expected `(date, entity)` keys locally.
+
 ### 6. Download the data
 
 Read `references/core/download-validation.md`.
@@ -160,14 +163,30 @@ For APIs that must be queried one code or one trading date at a time:
 python scripts/download_datacube.py fund_daily --split-by trade_date --split-values 20260309,20260310 --param ts_code=510300.SH --fields ts_code,trade_date,open,high,low,close,vol --out output/fund_daily.csv
 ```
 
+Verified request-plan execution requires `tushare_plus>=0.1.9`. Each JSONL line contains the complete parameter overrides for one partition:
+
+```json
+{"code":"000001.SZ","start_date":"20260101","end_date":"20260131"}
+{"code":"000002.SZ","start_date":"20260101","end_date":"20260131"}
+```
+
+```bash
+python scripts/download_datacube.py a_daily --request-plan requests.jsonl --checkpoint-dir output/a_daily.parts --partition-workers 4 --execution-manifest output/a_daily.execution.json --fields code,trade_date,close,adjclose,adjfactor --out output/a_daily.parquet --key-fields trade_date,code --expected-keys expected_keys.parquet --filter-to-expected-keys --group-fields trade_date --dataset-manifest output/a_daily.dataset.json --doc-id 10303
+```
+
+The final output is published only after every declared partition succeeds and the dataset contract passes. `--continue-on-error` may preserve successful checkpoints, but any partial result still exits non-zero and withholds `--out`.
+
 Important defaults:
 
 - `auto_paging` stays enabled unless there is a reason to cap the query.
+- `auto_paging=True` is an execution setting, not completeness evidence; prove completeness against expected keys or another independent contract.
+- For production auto-paging plans, derive an explicit `--max-pages` from expected rows and page size; otherwise an abnormal service can return indefinitely many distinct non-terminal pages, while `tushare_plus>=0.1.9` strict mode fails closed when the bound is reached.
 - Keep request-limit detection enabled on first use of an interface. DataCube docs can lag the runtime contract, so page limits shown on the page are hints rather than authority.
 - Use `--limit-per-request` only after the interface limit has been verified by a prior run or for bounded smoke tests. Use `--no-detect-limit` only as an advanced repeat-run option; do not skip detection before a new large pull.
 - For flaky long pulls, prefer explicit `--request-timeout`, `--max-retries`, `--retry-backoff`, and `--retry-jitter` before falling back to finer split loops.
 - Narrow `fields` aggressively to avoid pulling unnecessary columns.
 - Use `--concurrent` only for large pulls where extra requests are worth the complexity.
+- Use `--partition-workers` for concurrency across request-plan records. Do not combine it with page-level `--concurrent`.
 - Ensure `DATACUBE_TOKEN` exists in the environment, or pass `--token` explicitly.
 - Prefer interval-first plus timeout/retry before defaulting to fine-grained day-by-day loops when a mounted interface is merely unstable rather than structurally missing range support.
 - For monthly snapshot tables, validate the distinct dates and code coverage before defaulting to a daily pull pattern.
@@ -177,9 +196,11 @@ Important defaults:
 
 Before finishing:
 
-- Check row count and whether it matches the intended filters.
+- Check expected-key coverage and whether every intended natural partition is represented; total row count alone is insufficient.
 - Confirm the min and max dates in the result.
 - Check duplicates on the expected key columns.
+- Check per-group cardinality when the table has a known entity-per-date, date-per-entity, or records-per-period contract.
+- A fixed expected group cardinality checks only groups that were observed. Use an expected-key table to detect a group that is absent in its entirety.
 - Note null-heavy columns or provider-specific oddities.
 - Call out any doc/runtime mismatch, such as a documented filter not working, case-sensitive parameter names, or ETF codes returning zero rows on an ostensibly supported table.
 - Call out data-shape mismatches, such as a nominally daily table that is only practically useful on month-end snapshots for the target universe.
@@ -187,13 +208,15 @@ Before finishing:
 - If the table is missing a filter that would materially improve correctness or efficiency, say so explicitly, continue with the best currently available parameters when feasible, and suggest the missing filter to the user so they can ask maintainers to add it.
 - If Wind field comments are missing or ambiguous, say that the field meaning should be confirmed from the original WIND table data dictionary instead of guessing from the current interface page.
 - Report the chosen source, API name, key parameters, output file path, and remaining caveats.
+- Keep the download execution manifest distinct from the dataset-validation manifest. Successful requests prove execution of the declared plan, not that the plan represented the full intended dataset.
 
 ## Scripts
 
 - `scripts/search_datacube_docs.py`: cross-platform search and plain-text dump for DataCube doc pages, auto-switching between `w3m`, `lynx`, and a bundled Python renderer
 - `scripts/search_datacube_docs.sh`: thin Unix shell wrapper around `scripts/search_datacube_docs.py`
 - `scripts/extract_datacube_contract.py`: fetch a specific `doc_id` page and extract `api_name`, parameter tables, output fields, and sample code
-- `scripts/download_datacube.py`: call `tushare_plus.DataCubeAPI.get_data()` from the command line and save the result
+- `scripts/download_datacube.py`: run single requests or resumable multi-parameter partition plans, then publish only after dataset-contract validation
+- `scripts/dataset_validation.py`: generic exact-key, expected-key, group-cardinality, and dataset-manifest helpers
 
 ## References
 
