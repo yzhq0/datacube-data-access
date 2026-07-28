@@ -1,50 +1,28 @@
 # Download And Validation
 
-Read this file before the first pull and again before final reporting.
+Read this file before a verified job and again before reporting that job.
 
-## Main entry point
+## Entry points
 
-The preferred CLI is:
-
-```bash
-python scripts/download_datacube.py daily --param ts_code=000001.SZ --out output/daily.csv
-```
-
-Important runtime note:
-
-- `DataCubeAPI` reads `DATACUBE_TOKEN` from the environment when no token is passed explicitly
-- if `DATACUBE_TOKEN` is missing, client initialization fails
+- Use `pull` for bounded, explicitly unverified exploration.
+- Use `check` followed by `run` for a publishable dataset.
+- Read `references/core/job-spec.md` for the verified JSON contract.
+- Authenticate only through `DATACUBE_TOKEN`.
 
 ## Download habits
 
-- Keep `auto_paging=True` unless you have a reason to cap the query
+- Keep verified-job `auto_paging=true` unless the contract is intentionally one-page
 - Treat automatic paging as an execution convenience, never as independent proof that all intended records were returned
-- For production auto-paging plans, derive an explicit `--max-pages` from expected rows and page size; an abnormal service can otherwise emit indefinitely many distinct non-terminal pages, and `tushare_plus>=0.1.9` strict mode fails closed on the bound
+- For production auto-paging jobs, derive an explicit `max_pages` from expected rows and page size; an abnormal service can otherwise emit indefinitely many distinct non-terminal pages, and `tushare_plus>=0.1.9` strict mode fails closed on the bound
 - Keep request-limit detection enabled on first use of an interface; documented limits are often useful hints but can lag runtime behavior
-- Use `--limit-per-request` only after a prior run has verified the safe page size, or for small bounded smoke tests where the chosen page size cannot over-fetch
-- Use `--no-detect-limit` only for repeat runs against a verified interface; if it is used without `--limit-per-request`, the client fallback page size is applied
-- For flaky long pulls, tune `--request-timeout`, `--max-retries`, `--retry-backoff`, `--retry-jitter`, and `--max-retry-delay` before assuming the interface must be split more finely
+- Set `limit_per_request` only after a prior run has verified the safe page size
+- Disable limit detection only on repeat runs against a verified interface
+- For flaky long pulls, tune the job retry settings before splitting more finely
 - Narrow `fields` early so the pull stays small and inspection stays cheap
-- Use `concurrent=True` only when the request volume is large enough to justify the extra complexity
 - Save to an explicit output path and report that path back to the user
-- For custom Python pipelines, `DataCubeAPI.get_data(..., return_type="pandas|polars|arrow|raw")` can avoid unnecessary downstream conversion; the CLI still writes tabular outputs through pandas
+- Use materialized partitions, verified checkpoints, and resume for large pulls. A partial execution may retain checkpoints but must not publish a merged output as complete.
 
-For large split pulls, use a materialized request plan with verified checkpoints and resume. A partial execution may retain valid partition checkpoints for a later run, but it must not publish a merged output as complete.
-
-Plan execution requires `tushare_plus>=0.1.9`. For example, given a JSONL request plan in which every line is a complete parameter mapping:
-
-```json
-{"code":"000001.SZ","start_date":"20260101","end_date":"20260131"}
-{"code":"000002.SZ","start_date":"20260101","end_date":"20260131"}
-```
-
-run:
-
-```bash
-python scripts/download_datacube.py a_daily --request-plan requests.jsonl --checkpoint-dir output/a_daily.parts --partition-workers 4 --execution-manifest output/a_daily.execution.json --fields code,trade_date,close,adjclose,adjfactor --out output/a_daily.parquet --key-fields trade_date,code --expected-keys expected_keys.parquet --filter-to-expected-keys --group-fields trade_date --dataset-manifest output/a_daily.dataset.json --doc-id 10303
-```
-
-The plan executor owns partition fingerprints, verified resume, atomic checkpoints, and the execution manifest. The skill CLI owns exact expected-key filtering, dataset validation, and final publication. It never copies token values into request params or either manifest.
+The plan executor owns partition fingerprints, verified resume, atomic checkpoints, and the execution manifest. The skill owns expected-key filtering, dataset validation, and final publication. It never copies token values into job data, request params, or manifests.
 
 ## Validation checklist
 
