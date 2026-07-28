@@ -29,3 +29,17 @@ def test_cli_help_smoke(relative_path: str) -> None:
     )
 
     assert "usage:" in result.stdout.lower()
+
+
+def test_download_cli_exposes_only_new_subcommands() -> None:
+    script_path = REPO_ROOT / "scripts/download_datacube.py"
+    result = subprocess.run(
+        [sys.executable, str(script_path), "--help"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "{pull,check,run}" in result.stdout
+    for legacy in ("--split-by", "--request-plan", "--expected-keys", "--token"):
+        assert legacy not in result.stdout

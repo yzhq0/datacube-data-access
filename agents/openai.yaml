@@ -1,4 +1,4 @@
 interface:
   display_name: "Datacube Data Access"
   short_description: "Find DataCube APIs, validate contracts, and download datasets"
-  default_prompt: "Use $datacube-data-access to find the right DataCube interface from a data requirement, validate the contract, and download the dataset."
+  default_prompt: "Use $datacube-data-access to find the right DataCube interface, validate its live contract, and choose a bounded pull or verified download job."

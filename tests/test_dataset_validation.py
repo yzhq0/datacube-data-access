@@ -1,24 +1,14 @@
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
+import sys
 
 import pandas as pd
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = REPO_ROOT / "scripts" / "dataset_validation.py"
-
-
-def _load_module():
-    spec = importlib.util.spec_from_file_location("dataset_validation", MODULE_PATH)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-validation = _load_module()
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from datacube_download import validation  # noqa: E402
 
 
 def test_exact_expected_key_and_group_cardinality_audit_passes() -> None:
